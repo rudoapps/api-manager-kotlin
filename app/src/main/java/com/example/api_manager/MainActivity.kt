@@ -10,9 +10,11 @@ import com.example.api_manager.model.Response
 import com.example.api_manager.model.User
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
+import com.google.gson.JsonObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.IOException
 import java.io.InputStreamReader
@@ -49,7 +51,7 @@ class MainActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             val characterResponsePost =
-                doACall<User>(endpoint = "user", bodyParam = User(email = "asdad@asda.com", name = "asasd"), method = "POST", headers = headers)
+                doACall<User>(endpoint = "user", bodyParam = User(name = "asasd"), method = "POST", headers = headers)
 
 
             while (logRequests.isNotEmpty()) {
@@ -125,6 +127,8 @@ class MainActivity : AppCompatActivity() {
                     val url = URL(Constants.BASE_URL + parameterizedEndpoint)
 
                     withContext(Dispatchers.IO) {
+                        val starTime = System.currentTimeMillis()
+
                         connection = url.openConnection() as HttpURLConnection
                         connection?.configureConnection(method)
                         connection?.addHeaders(headers)
@@ -141,7 +145,8 @@ class MainActivity : AppCompatActivity() {
                         val jsonStringHolder = readResponseBuffer(bufferedReader)
                         formatResult(response, jsonStringHolder)
 
-                        logRequests.add { requestLog(connection, headers, bodyParam) }
+                        val elapsedTime = System.currentTimeMillis() - starTime
+                        logRequests.add { responseLog(connection, jsonStringHolder,elapsedTime) }
 
                         cont.resume(response)
                     }
@@ -161,29 +166,67 @@ class MainActivity : AppCompatActivity() {
     ) {
         val gson = GsonBuilder().setPrettyPrinting().create()
 
-        Log.d("HTTP", "┌────── HTTP REQUEST ────────────────────────────────────────────────────────────────────────")
-        Log.d("HTTP", "│ ${connection?.requestMethod} ${connection?.url.toString()}")
-        Log.d("HTTP", "│")
-        Log.d("HTTP", "│ Headers: $headers\n")
-        Log.d("HTTP", "│")
-        Log.d("HTTP", if (bodyParam == null) "│ Omitted request body" else "│ RequestBody:  ${gson.toJson(bodyParam)}")
-        Log.d("HTTP", "│")
-        Log.d("HTTP", "└─────────────────────────────────────────────────────────────────────────")
+        Log.d("HTTP-REQUEST", "┌────── HTTP REQUEST ────────────────────────────────────────────────────────────────────────")
+        Log.d("HTTP-REQUEST", "│ ${connection?.requestMethod} ${connection?.url.toString()}")
+        Log.d("HTTP-REQUEST", "│")
+        Log.d("HTTP-REQUEST", "│ Headers: $headers\n")
+        Log.d("HTTP-REQUEST", "│")
+        if (bodyParam == null) {
+            Log.d("HTTP-REQUEST", "│ Omitted request body")
+        } else {
+            Log.d("HTTP-REQUEST", "│ RequestBody:")
+            gson.toJson(bodyParam).split("\n").forEach {
+                Log.d("HTTP-REQUEST", "│ $it")
+            }
+        }
+        Log.d("HTTP-REQUEST", "│")
+        Log.d("HTTP-REQUEST", "└─────────────────────────────────────────────────────────────────────────")
     }
 
     private fun responseLog(
         connection: HttpURLConnection?,
-        bodyParam: Any?
+        jsonStringHolder: StringBuilder,
+        elapsedTime: Long
     ) {
-        Log.d("HTTP", "┌────── HTTP RESPONSE ────────────────────────────────────────────────────────────────────────")
-        Log.d("HTTP", "│ ${connection?.requestMethod} ${connection?.url.toString()}")
-        Log.d("HTTP", "│")
-        Log.d("HTTP", "│")
-        Log.d("HTTP", if (bodyParam == null) "│ Omitted request body" else "│ RequestBody:  ${Gson().toJson(bodyParam)}")
-        Log.d("HTTP", "│")
-        Log.d("HTTP", "└─────────────────────────────────────────────────────────────────────────")
-    }
+        val gson = GsonBuilder().setPrettyPrinting().create()
 
+        if(connection?.responseCode in 200..300)
+        {
+            Log.d("HTTP-RESPONSE", "┌────── HTTP RESPONSE ────────────────────────────────────────────────────────────────────────")
+            Log.d("HTTP-RESPONSE", "│ ${connection?.requestMethod} ${connection?.url.toString()}")
+            Log.d("HTTP-RESPONSE", "│")
+            Log.d("HTTP-RESPONSE", "│ STATUS CODE: ${connection?.responseCode} - Received in: ${elapsedTime}ms")
+            Log.d("HTTP-RESPONSE", "│")
+            Log.d("HTTP-RESPONSE", "│")
+            Log.d("HTTP-RESPONSE", "│")
+            Log.d("HTTP-RESPONSE", "│ Body:")
+            Log.d("HTTP-RESPONSE", "│ [")
+            gson.toJson(gson.fromJson(jsonStringHolder.toString(),JsonObject::class.java)).split("\n").forEach {
+                Log.d("HTTP-RESPONSE", "│      $it")
+            }
+            Log.d("HTTP-RESPONSE", "│ ]")
+            Log.d("HTTP-RESPONSE", "│")
+            Log.d("HTTP-RESPONSE", "└─────────────────────────────────────────────────────────────────────────")
+        }else{
+            Log.e("HTTP-RESPONSE", "┌────── HTTP RESPONSE ────────────────────────────────────────────────────────────────────────")
+            Log.e("HTTP-RESPONSE", "│ ${connection?.requestMethod} ${connection?.url.toString()}")
+            Log.e("HTTP-RESPONSE", "│")
+            Log.e("HTTP-RESPONSE", "│ STATUS CODE: ${connection?.responseCode} - Received in: ${elapsedTime}ms")
+            Log.e("HTTP-RESPONSE", "│")
+            Log.e("HTTP-RESPONSE", "│")
+            Log.e("HTTP-RESPONSE", "│")
+            Log.e("HTTP-RESPONSE", "│ Body:")
+            Log.e("HTTP-RESPONSE", "│ [")
+            gson.toJson(gson.fromJson(jsonStringHolder.toString(),JsonObject::class.java)).split("\n").forEach {
+                Log.e("HTTP-RESPONSE", "│      $it")
+            }
+            Log.e("HTTP-RESPONSE", "│ ]")
+            Log.e("HTTP-RESPONSE", "│")
+            Log.e("HTTP-RESPONSE", "└─────────────────────────────────────────────────────────────────────────")
+        }
+
+    }
+    
     private inline fun <reified T> formatResult(response: Response<T>, jsonStringHolder: StringBuilder) {
         if (response.responseCode in 200..300) {
             val parsedResponse = Gson().fromJson(jsonStringHolder.toString(), T::class.java)
