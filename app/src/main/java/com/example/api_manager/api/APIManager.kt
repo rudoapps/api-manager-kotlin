@@ -1,6 +1,8 @@
 package com.example.api_manager.api
 
 import android.util.Log
+import com.example.api_manager.api.APIManager.Constants.HTTP_GET
+import com.example.api_manager.api.APIManager.Constants.HTTP_POST
 import com.example.api_manager.model.ApiError
 import com.example.api_manager.model.Response
 import com.example.api_manager.model.User
@@ -16,11 +18,13 @@ import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.*
+import kotlin.jvm.internal.Intrinsics.Kotlin
+import kotlin.reflect.jvm.javaMethod
 
 class APIManager {
     object Constants {
         //const val BASE_URL = "https://rickandmortyapi.com/api/"
-        const val BASE_URL = "http://192.168.0.26:3000/"
+        const val BASE_URL = "http://192.168.10.4:3000/"
         const val TIME_OUT = 30000
         const val HTTP_GET = "GET"
         const val HTTP_PATH = "PATH"
@@ -44,7 +48,7 @@ class APIManager {
         pathParams: List<Pair<String, Any>>? = null,
         queryParams: List<Pair<String, Any>>? = null,
         bodyParam: Any? = null,
-        method: String? = Constants.HTTP_GET
+        method: String? = HTTP_GET
     ): Response<T> {
         lateinit var response: Response<T>
         var connection: HttpURLConnection? = null
@@ -235,11 +239,38 @@ class APIManager {
         pathParameters: List<Pair<String, Any>>? = null,
         queryParameters: List<Pair<String, Any>>? = null,
     ): Response<User> =
-        doACall(endpoint = "user/me", method = Constants.HTTP_GET, headers = headers, pathParams = pathParameters, queryParams = queryParameters)
+        doACall(endpoint = "user/me", method = HTTP_GET, headers = headers, pathParams = pathParameters, queryParams = queryParameters)
 
+
+    @POST("user")
     suspend fun tryPost(
-        pathParameters: List<Pair<String, Any>>? = null,
+        @Query("") pathParameters: List<Pair<String, Any>>? = null,
         queryParameters: List<Pair<String, Any>>? = null,
-        bodyParam: Any? = User(name = "asasd"),
-    ): Response<User> = doACall(endpoint = "user", bodyParam = bodyParam, method = "POST", headers = headers)
+        bodyParam: Any? = User(name = "asasd")
+    ): Response<User> = doACall(endpoint = "user", bodyParam = bodyParam, method = HTTP_POST, headers = headers)
+
+    //TODO ANNOTATION IMPLEMENT
+    @POST("user")
+    suspend fun tryPosts(
+        @Query("if") pathParameters: List<Pair<String, Any>>? = null,
+        queryParameters: List<Pair<String, Any>>? = null,
+        bodyParam: Any? = User(name = "asasd")
+    ): Response<User> {
+        val queryParameters = arrayListOf<Annotation>()
+        this::tryPosts.javaMethod?.parameterAnnotations?.forEach { annotation ->
+            queryParameters.addAll(annotation.filter { it.annotationClass.java ==  Query::class.java })
+        }
+        val ss = (queryParameters[0] as Query).value
+        val sss = (queryParameters[0] as Query)
+        //val query = pathParameters?.getAnnotation(Query::class.java)?.value
+        return doACall(endpoint = sss.toString(), bodyParam = bodyParam, method = HTTP_POST, headers = headers)
+    }
+
+    @Target(AnnotationTarget.FUNCTION)
+    @Retention(AnnotationRetention.RUNTIME)
+    internal annotation class POST(val url: String)
+
+    @Target(AnnotationTarget.VALUE_PARAMETER)
+    @Retention(AnnotationRetention.RUNTIME)
+    annotation class Query(val value:String)
 }
