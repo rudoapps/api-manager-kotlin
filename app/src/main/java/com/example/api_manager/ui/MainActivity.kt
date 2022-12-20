@@ -1,21 +1,15 @@
 package com.example.api_manager.ui
 
 import android.os.Bundle
-import android.util.Log
-import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.lifecycleScope
-import com.example.api_manager.App
 import com.example.api_manager.R
-import com.example.api_manager.model.User
-import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        lifecycleScope.launch {
+        /*lifecycleScope.launch {
             val pathParameters = listOf(
                 Pair("id", 1)
             )
@@ -42,6 +36,6 @@ class MainActivity : AppCompatActivity() {
             App.apiManager.tryPost(
                 bodyParam = User(email = "asdas@asd.com", name = "asasd")
             )
-        }
+        }*/
     }
 }
